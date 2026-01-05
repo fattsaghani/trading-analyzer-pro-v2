@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Upload Trade History</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>How to export from MT5:</strong>
+                        <ol class="mb-0 mt-2">
+                            <li>Open MT5 → <strong>Account History</strong> tab</li>
+                            <li>Right-click → <strong>Report</strong> → <strong>HTML</strong></li>
+                            <li>Save and upload here</li>
+                        </ol>
+                    </div>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label">Select HTML File</label>
+                            <input type="file" name="file" class="form-control" accept=".html,.htm" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-upload"></i> Upload
+                        </button>
+                    </form>
+                    
+                    {% if current_user.history_file %}
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <small class="text-muted">
+                            Last upload: {{ current_user.history_uploaded_at.strftime('%Y-%m-%d %H:%M') if current_user.history_uploaded_at else 'N/A' }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

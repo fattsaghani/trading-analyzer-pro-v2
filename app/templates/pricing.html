@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold">Subscription Plans</h1>
+        <p class="text-muted fs-5">Unlock powerful trading analytics</p>
+    </div>
+    
+    <div class="row justify-content-center g-4">
+        <div class="col-lg-4 col-md-6">
+            <div class="card text-center h-100" style="border: 2px solid var(--accent-blue);">
+                <div class="card-body p-5">
+                    <div class="mb-3">
+                        <span class="badge" style="background: var(--accent-blue); font-size: 0.9rem;">MOST POPULAR</span>
+                    </div>
+                    <h3 class="card-title">Monthly</h3>
+                    <div class="my-4">
+                        <span class="display-4 fw-bold" style="color: var(--accent-blue);">$9.99</span>
+                        <span class="text-muted">/month</span>
+                    </div>
+                    <hr style="border-color: var(--border-color);">
+                    <ul class="list-unstyled text-start my-4">
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Unlimited file uploads</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Live MT5 connection</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Full trade analysis</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Equity curve tracking</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Profit by symbol</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Best trading hours</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Monthly performance</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Drawdown analysis</li>
+                    </ul>
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.is_subscription_active() %}
+                            <div class="d-grid">
+                                <button class="btn btn-success btn-lg" disabled>
+                                    <i class="bi bi-check-lg"></i> Subscribed
+                                </button>
+                                <small class="text-muted mt-2">
+                                    {% if current_user.is_admin %}
+                                        Admin access - unlimited
+                                    {% else %}
+                                        Expires: {{ current_user.subscription_end.strftime('%B %d, %Y') if current_user.subscription_end else 'N/A' }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        {% else %}
+                            <form method="POST" action="{{ url_for('main.subscribe') }}">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="bi bi-credit-card"></i> Subscribe Now
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% else %}
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-person-plus"></i> Get Started
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Trading Journal Analyzer</title>
+  <style>
+    :root{
+      --bg:#f5f7fa;
+      --card:#ffffff;
+      --text:#2c3e50;
+      --muted:#7f8c8d;
+      --border:#e6e8ec;
+      --pos:#27ae60;
+      --neg:#e74c3c;
+      --btn:#3498db;
+      --btn2:#2980b9;
+    }
+    html,body{height:100%;margin:0;font-family:Arial, sans-serif;background:var(--bg);color:var(--text);}
+    .header{
+      position:sticky;top:0;z-index:10;
+      background:var(--bg);
+      border-bottom:1px solid var(--border);
+      padding:14px 16px;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+    }
+    .title{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .pill{
+      background:#fff;border:1px solid var(--border);
+      padding:8px 10px;border-radius:999px;font-size:12px;color:var(--muted);
+    }
+    .btn{
+      background:var(--btn);border:none;color:#fff;
+      padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13px;
+    }
+    .btn:hover{background:var(--btn2);}
+    .btn:disabled{background:#bdc3c7;cursor:not-allowed;}
+    .container{max-width:1200px;margin:0 auto;padding:16px;}
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+      gap:12px;
+      margin-bottom:14px;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:14px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.04);
+    }
+    .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+    .value{margin-top:8px;font-size:20px;font-weight:700;}
+    .pos{color:var(--pos);}
+    .neg{color:var(--neg);}
+    .section-title{
+      font-size:14px;font-weight:700;margin:0 0 10px 0;color:#34495e;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+    }
+    .hint{font-size:12px;color:var(--muted);margin:0;}
+    .error{
+      background:#fff3f3;border:1px solid #ffd0d0;color:#b00020;
+      padding:10px 12px;border-radius:8px;margin-bottom:12px;display:none;
+    }
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th,td{border-bottom:1px solid var(--border);padding:10px 8px;text-align:left;vertical-align:top;}
+    th{color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.35px;}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;}
+    .footer-note{color:var(--muted);font-size:12px;margin-top:10px;}
+    .loading{
+      position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(255,255,255,0.78);z-index:999;
+      font-size:16px;color:var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">Trading Journal Analyzer</div>
+    <div class="right">
+      <div class="pill">Last updated: <span id="update-time">-</span></div>
+      <button class="btn" id="refresh-btn">Refresh</button>
+    </div>
+  </div>
+
+  <div class="loading" id="loading">Loading...</div>
+
+  <div class="container">
+    <div class="error" id="errbox"></div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">Trades</div>
+        <div class="value" id="trades">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Net Profit</div>
+        <div class="value" id="netprofit">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Win Rate</div>
+        <div class="value" id="winrate">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Avg Profit / Trade</div>
+        <div class="value" id="avgprofit">-</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">Gross Profit</div>
+        <div class="value" id="grossprofit">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Gross Loss</div>
+        <div class="value" id="grossloss">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Commission</div>
+        <div class="value" id="commission">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Swap</div>
+        <div class="value" id="swap">-</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <span>Sample Parsed Trades (from diagnostics)</span>
+        <p class="hint">If this is empty, your HTML report may not be detected correctly.</p>
+      </div>
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Type</th>
+              <th>OpenTime</th>
+              <th>CloseTime</th>
+              <th class="mono">Profit</th>
+              <th class="mono">Commission</th>
+              <th class="mono">Swap</th>
+              <th class="mono">NetProfit</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr><td colspan="8" style="color:#7f8c8d;">No data loaded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer-note">
+        API endpoint: <span class="mono">/api/data</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const refreshBtn = document.getElementById("refresh-btn");
+    const loading = document.getElementById("loading");
+    const errbox = document.getElementById("errbox");
+
+    function money(x){
+      const n = Number(x || 0);
+      const signClass = n >= 0 ? "pos" : "neg";
+      const formatted = new Intl.NumberFormat("en-US", {
+        style:"currency", currency:"USD", minimumFractionDigits:2, maximumFractionDigits:2
+      }).format(n);
+      return { formatted, signClass };
+    }
+
+    function pct(x){
+      const n = Number(x || 0);
+      return `${n.toFixed(1)}%`;
+    }
+
+    function setLoading(on){
+      loading.style.display = on ? "flex" : "none";
+      refreshBtn.disabled = on;
+    }
+
+    function showError(msg){
+      errbox.style.display = "block";
+      errbox.textContent = msg;
+    }
+
+    function clearError(){
+      errbox.style.display = "none";
+      errbox.textContent = "";
+    }
+
+    function updateTime(){
+      const now = new Date();
+      document.getElementById("update-time").textContent = now.toLocaleString();
+    }
+
+    function safeText(x){
+      if (x === null || x === undefined) return "";
+      return String(x);
+    }
+
+    function renderRows(sampleRows){
+      const tbody = document.getElementById("rows");
+      if (!sampleRows || sampleRows.length === 0){
+        tbody.innerHTML = `<tr><td colspan="8" style="color:#7f8c8d;">No sample rows returned.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = "";
+      for (const r of sampleRows){
+        const profit = Number(r.Profit || 0);
+        const comm = Number(r.Commission || 0);
+        const swap = Number(r.Swap || 0);
+        const net = Number(r.NetProfit || 0);
+
+        const p = money(profit);
+        const c = money(comm);
+        const s = money(swap);
+        const n = money(net);
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${safeText(r.Symbol || r.symbol || "")}</td>
+          <td>${safeText(r.Type || r.type || "")}</td>
+          <td class="mono">${safeText(r.OpenTime || "")}</td>
+          <td class="mono">${safeText(r.CloseTime || "")}</td>
+          <td class="mono ${p.signClass}">${p.formatted}</td>
+          <td class="mono ${c.signClass}">${c.formatted}</td>
+          <td class="mono ${s.signClass}">${s.formatted}</td>
+          <td class="mono ${n.signClass}">${n.formatted}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function fetchData(){
+      const res = await fetch("/api/data");
+      const json = await res.json();
+      if (!res.ok){
+        const msg = json && json.error ? json.error : `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return json;
+    }
+
+    async function refresh(){
+      clearError();
+      setLoading(true);
+      try{
+        const data = await fetchData();
+
+        if (data.error){
+          showError(data.error);
+          return;
+        }
+
+        const a = data.analysis || {};
+        const net = money(a.net_profit || 0);
+        const avg = money(a.avg_profit || 0);
+        const gp = money(a.gross_profit || 0);
+        const gl = money(a.gross_loss || 0);
+        const cm = money(a.commission || 0);
+        const sw = money(a.swap || 0);
+
+        document.getElementById("trades").textContent = (a.trades ?? 0).toLocaleString();
+        const netEl = document.getElementById("netprofit");
+        netEl.textContent = net.formatted;
+        netEl.className = `value ${net.signClass}`;
+
+        document.getElementById("winrate").textContent = pct(a.win_rate || 0);
+
+        const avgEl = document.getElementById("avgprofit");
+        avgEl.textContent = avg.formatted;
+        avgEl.className = `value ${avg.signClass}`;
+
+        const gpEl = document.getElementById("grossprofit");
+        gpEl.textContent = gp.formatted;
+        gpEl.className = `value ${gp.signClass}`;
+
+        const glEl = document.getElementById("grossloss");
+        glEl.textContent = gl.formatted;
+        glEl.className = `value ${gl.signClass}`;
+
+        const cmEl = document.getElementById("commission");
+        cmEl.textContent = cm.formatted;
+        cmEl.className = `value ${cm.signClass}`;
+
+        const swEl = document.getElementById("swap");
+        swEl.textContent = sw.formatted;
+        swEl.className = `value ${sw.signClass}`;
+
+        const sampleRows = (data.diagnostics && data.diagnostics.sample_rows) ? data.diagnostics.sample_rows : [];
+        renderRows(sampleRows);
+
+        updateTime();
+      }catch(e){
+        showError(e.message || String(e));
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    refreshBtn.addEventListener("click", refresh);
+    document.addEventListener("DOMContentLoaded", refresh);
+  </script>
+</body>
+</html>

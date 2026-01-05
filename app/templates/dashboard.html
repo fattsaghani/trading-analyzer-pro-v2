@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Trading Dashboard</h2>
+            <span class="live-indicator" id="data-source">LIVE</span>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-muted" id="last-update"></span>
+            <a href="{{ url_for('main.upload') }}" class="btn btn-outline-primary">
+                <i class="bi bi-upload"></i> Upload
+            </a>
+            <button id="refresh-btn" class="btn btn-primary">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card stat-card">
+                <div class="stat-label">Total Trades</div>
+                <div class="stat-value text-info" id="total-trades">--</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card">
+                <div class="stat-label">Total Profit</div>
+                <div class="stat-value" id="total-profit">--</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value" id="win-rate">--</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card">
+                <div class="stat-label">Wins / Losses</div>
+                <div class="stat-value">
+                    <span class="profit-positive" id="wins">--</span> / 
+                    <span class="profit-negative" id="losses">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Info Row -->
+    <div class="row g-4 mb-4" id="account-row" style="display: none;">
+        <div class="col-md-3 col-6">
+            <div class="card stat-card" style="background: linear-gradient(135deg, rgba(88, 166, 255, 0.1), rgba(88, 166, 255, 0.05));">
+                <div class="stat-label">Balance</div>
+                <div class="stat-value text-info" id="balance">--</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card" style="background: linear-gradient(135deg, rgba(163, 113, 247, 0.1), rgba(163, 113, 247, 0.05));">
+                <div class="stat-label">Equity</div>
+                <div class="stat-value" style="color: var(--accent-purple);" id="equity">--</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card">
+                <div class="stat-label">Margin</div>
+                <div class="stat-value text-warning" id="margin">--</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card" style="background: linear-gradient(135deg, rgba(63, 185, 80, 0.1), rgba(63, 185, 80, 0.05));">
+                <div class="stat-label">Free Margin</div>
+                <div class="stat-value profit-positive" id="free-margin">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3"><i class="bi bi-graph-up text-info"></i> Equity Curve</h5>
+                    <canvas id="equityChart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3"><i class="bi bi-pie-chart text-warning"></i> Win/Loss Ratio</h5>
+                    <canvas id="winLossChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3"><i class="bi bi-bar-chart text-success"></i> Profit by Symbol</h5>
+                    <canvas id="symbolChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3"><i class="bi bi-clock text-primary"></i> Best Trading Hours</h5>
+                    <canvas id="hourChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3 -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3"><i class="bi bi-calendar3 text-info"></i> Monthly Performance</h5>
+                    <canvas id="monthlyChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3"><i class="bi bi-graph-down text-danger"></i> Drawdown</h5>
+                    <canvas id="drawdownChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+
+<script>
+let charts = {};
+const AUTO_REFRESH_MS = 10000;
+
+const chartColors = {
+    green: 'rgba(63, 185, 80, 1)',
+    greenBg: 'rgba(63, 185, 80, 0.2)',
+    red: 'rgba(248, 81, 73, 1)',
+    redBg: 'rgba(248, 81, 73, 0.2)',
+    blue: 'rgba(88, 166, 255, 1)',
+    blueBg: 'rgba(88, 166, 255, 0.2)',
+    purple: 'rgba(163, 113, 247, 1)',
+    purpleBg: 'rgba(163, 113, 247, 0.2)',
+    orange: 'rgba(210, 153, 34, 1)',
+    orangeBg: 'rgba(210, 153, 34, 0.2)',
+    gray: 'rgba(139, 148, 158, 0.5)',
+};
+
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = 'rgba(48, 54, 61, 0.5)';
+
+function fmtMoney(x) {
+    const n = Number(x || 0);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+}
+
+function fmtPct(x) {
+    const n = Number(x || 0);
+    return `${(n * 100).toFixed(2)}%`;
+}
+
+function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
+function destroyCharts() {
+    Object.values(charts).forEach(c => c && c.destroy());
+    charts = {};
+}
+
+function renderCharts(data) {
+    destroyCharts();
+
+    // Win/Loss Pie Chart
+    const wins = data.wins || 0;
+    const losses = data.losses || 0;
+    const winLossCtx = document.getElementById('winLossChart').getContext('2d');
+    charts.winLoss = new Chart(winLossCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Wins', 'Losses'],
+            datasets: [{
+                data: [wins, losses],
+                backgroundColor: [chartColors.green, chartColors.red],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            },
+            cutout: '60%',
+        }
+    });
+
+    // Profit by Symbol
+    const sym = Array.isArray(data.profit_by_symbol) ? data.profit_by_symbol : [];
+    const symLabels = sym.map(x => String(x.symbol ?? ""));
+    const symValues = sym.map(x => Number(x.profit ?? 0));
+    const symColors = symValues.map(v => v >= 0 ? chartColors.green : chartColors.red);
+
+    const symCtx = document.getElementById('symbolChart').getContext('2d');
+    charts.symbol = new Chart(symCtx, {
+        type: 'bar',
+        data: { 
+            labels: symLabels, 
+            datasets: [{ 
+                label: 'Profit',
+                data: symValues, 
+                backgroundColor: symColors,
+                borderRadius: 4,
+            }] 
+        },
+        options: { 
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(48, 54, 61, 0.3)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // Profit by Hour
+    const hrs = Array.isArray(data.profit_by_hour) ? data.profit_by_hour : [];
+    const hrsSorted = [...hrs].sort((a,b) => Number(a.hour) - Number(b.hour));
+    const hrLabels = hrsSorted.map(x => `${x.hour}:00`);
+    const hrValues = hrsSorted.map(x => Number(x.profit ?? 0));
+    const hrColors = hrValues.map(v => v >= 0 ? chartColors.blue : chartColors.purple);
+
+    const hrCtx = document.getElementById('hourChart').getContext('2d');
+    charts.hour = new Chart(hrCtx, {
+        type: 'bar',
+        data: { 
+            labels: hrLabels, 
+            datasets: [{ 
+                label: 'Profit',
+                data: hrValues, 
+                backgroundColor: hrColors,
+                borderRadius: 4,
+            }] 
+        },
+        options: { 
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(48, 54, 61, 0.3)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // Equity Curve
+    const eq = Array.isArray(data.equity_curve) ? data.equity_curve : [];
+    const eqLabels = eq.map((p, i) => i + 1);
+    const eqValues = eq.map(p => Number(p.y ?? 0));
+
+    const eqCtx = document.getElementById('equityChart').getContext('2d');
+    charts.equity = new Chart(eqCtx, {
+        type: 'line',
+        data: { 
+            labels: eqLabels, 
+            datasets: [{ 
+                label: 'Equity',
+                data: eqValues, 
+                borderColor: chartColors.blue, 
+                fill: true, 
+                backgroundColor: chartColors.blueBg, 
+                pointRadius: 0,
+                tension: 0.3,
+            }] 
+        },
+        options: { 
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(48, 54, 61, 0.3)' } },
+                x: { display: false }
+            }
+        }
+    });
+
+    // Monthly Performance
+    const monthly = Array.isArray(data.monthly_profit) ? data.monthly_profit : [];
+    const monthLabels = monthly.map(x => x.month);
+    const monthValues = monthly.map(x => Number(x.profit ?? 0));
+    const monthColors = monthValues.map(v => v >= 0 ? chartColors.green : chartColors.red);
+
+    const monthCtx = document.getElementById('monthlyChart').getContext('2d');
+    charts.monthly = new Chart(monthCtx, {
+        type: 'bar',
+        data: { 
+            labels: monthLabels, 
+            datasets: [{ 
+                label: 'Monthly Profit',
+                data: monthValues, 
+                backgroundColor: monthColors,
+                borderRadius: 4,
+            }] 
+        },
+        options: { 
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(48, 54, 61, 0.3)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // Drawdown Chart
+    let maxEquity = 0;
+    const drawdownData = eqValues.map(eq => {
+        if (eq > maxEquity) maxEquity = eq;
+        return maxEquity > 0 ? ((eq - maxEquity) / Math.abs(maxEquity)) * 100 : 0;
+    });
+
+    const ddCtx = document.getElementById('drawdownChart').getContext('2d');
+    charts.drawdown = new Chart(ddCtx, {
+        type: 'line',
+        data: { 
+            labels: eqLabels, 
+            datasets: [{ 
+                label: 'Drawdown %',
+                data: drawdownData, 
+                borderColor: chartColors.red, 
+                fill: true, 
+                backgroundColor: chartColors.redBg, 
+                pointRadius: 0,
+                tension: 0.3,
+            }] 
+        },
+        options: { 
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { 
+                    grid: { color: 'rgba(48, 54, 61, 0.3)' },
+                    ticks: { callback: v => v + '%' }
+                },
+                x: { display: false }
+            }
+        }
+    });
+}
+
+async function loadData() {
+    try {
+        const res = await fetch('/api/data', { cache: 'no-store' });
+        const data = await res.json();
+
+        if (data.error) {
+            console.error('Error:', data.error);
+            return;
+        }
+
+        setText('total-trades', (data.total_trades ?? 0).toLocaleString());
+        
+        const profit = data.total_profit ?? 0;
+        const profitEl = document.getElementById('total-profit');
+        profitEl.textContent = fmtMoney(profit);
+        profitEl.className = 'stat-value ' + (profit >= 0 ? 'profit-positive glow-green' : 'profit-negative glow-red');
+        
+        const winrate = data.winrate ?? 0;
+        const winrateEl = document.getElementById('win-rate');
+        winrateEl.textContent = fmtPct(winrate);
+        winrateEl.className = 'stat-value ' + (winrate >= 0.5 ? 'profit-positive' : 'profit-negative');
+        
+        setText('wins', data.wins ?? 0);
+        setText('losses', data.losses ?? 0);
+        
+        const source = data.data_source || 'Unknown';
+        document.getElementById('data-source').textContent = source === 'MT5_LIVE' ? 'LIVE' : source;
+
+        if (data.balance !== undefined) {
+            document.getElementById('account-row').style.display = 'flex';
+            setText('balance', fmtMoney(data.balance ?? 0));
+            setText('equity', fmtMoney(data.equity ?? 0));
+            setText('margin', fmtMoney(data.margin ?? 0));
+            setText('free-margin', fmtMoney(data.free_margin ?? 0));
+        }
+
+        const now = new Date();
+        setText('last-update', `Last update: ${now.toLocaleTimeString()}`);
+
+        renderCharts(data);
+    } catch (e) {
+        console.error('Load error:', e);
+    }
+}
+
+document.getElementById('refresh-btn').addEventListener('click', loadData);
+document.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    setInterval(loadData, AUTO_REFRESH_MS);
+});
+</script>
+{% endblock %}
