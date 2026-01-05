@@ -7,21 +7,31 @@
             <div class="card">
                 <div class="card-body p-5">
                     <h3 class="card-title mb-4">Complete Your Subscription</h3>
-                    <p class="text-muted mb-4">Subscribe to Trading Analyzer Pro for $9.99/month</p>
+                    <p class="text-muted mb-4">Redirecting to secure payment...</p>
                     
-                    <script src="https://js.stripe.com/v3/"></script>
-                    <script>
-                        Stripe('{{ publishable_key }}').redirectToCheckout({
-                            sessionId: '{{ session_id }}'
-                        }).then(function (result) {
-                            if (result.error) {
-                                alert(result.error.message);
-                            }
-                        });
-                    </script>
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    // Redirect immediately when page loads
+    window.onload = function() {
+        Stripe('{{ publishable_key }}').redirectToCheckout({
+            sessionId: '{{ session_id }}'
+        }).then(function (result) {
+            if (result.error) {
+                alert('Payment error: ' + result.error.message);
+                window.location.href = '/pricing';
+            }
+        });
+    };
+</script>
 {% endblock %}
