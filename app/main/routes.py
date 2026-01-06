@@ -117,9 +117,7 @@ def payment():
             customer_email=current_user.email,
         )
         
-        return render_template('payment.html', 
-                             publishable_key=current_app.config.get('STRIPE_PUBLISHABLE_KEY'),
-                             session_id=checkout_session.id)
+        return redirect(checkout_session.url, code=303)
     except Exception as e:
         flash(f'Payment error: {str(e)}', 'error')
         return redirect(url_for('main.pricing'))
