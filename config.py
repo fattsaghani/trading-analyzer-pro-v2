@@ -9,9 +9,10 @@ MT5_ACCOUNT = 297003305
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-change-in-production'
     
-    # Use PostgreSQL in production, SQLite locally
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'trading_analyzer.db')
+    # Force PostgreSQL on Render
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    if not SQLALCHEMY_DATABASE_URI:
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'trading_analyzer.db')
     
     # Fix for Render PostgreSQL URL
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
@@ -23,7 +24,7 @@ class Config:
     
     # Session configuration for persistent login
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
-    REMEMBER_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    REMEMBER_COOKIE_SECURE = False
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_SAMESITE = 'Lax'
     
